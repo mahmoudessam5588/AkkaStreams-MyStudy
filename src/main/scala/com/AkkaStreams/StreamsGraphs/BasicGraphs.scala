@@ -42,7 +42,7 @@ object BasicGraphs extends App {
         ClosedShape //Freeze the builder shape
     } //static graph
   ) //runnable graph
-  //customGraph.run()
+  customGraph.run()
   // run the graph and materialize it
   //------------------------------------------------------------------------------
   //exercise 1: feed a source into 2 sinks using broadcast
@@ -83,4 +83,7 @@ object BasicGraphs extends App {
     }
   )
   exerciseTwoGraph.run()
+  //Non-Linear Components:
+  //A)Fan-Out components ==>{Broadcast,Balance}
+  //B)Fan-In components ==>{Zip/ZipWith,Merge,Concat}
 }
