@@ -6,7 +6,6 @@ import akka.stream.{Materializer, OverflowStrategy}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 
 import scala.language.postfixOps
-
 //Backpressure is one fundamental features of Reactive Streams
 //A) elements flow as response to demand from consumers
 //      -consumers are the one who triggers the flow of elements through a stream
@@ -83,7 +82,4 @@ object BackPressureStreams extends App {
   import scala.concurrent.duration.*
   rapidSource.throttle(2,1 second) //2 elements per second
     .runWith(Sink.foreach(println))
-
-
-
 }
