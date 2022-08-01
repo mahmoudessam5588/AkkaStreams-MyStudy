@@ -60,7 +60,7 @@ object OpenGraphAndShapes extends App {
         //everything operates on shape
         //if we don't need auxiliary predefined shapes like broadcast concat etc
         //we create our own shape  like thw following
-        val incrementShape = builder.add(flowOne)
+        val  incrementShape = builder.add(flowOne)
         val multiplierShape = builder.add(flowTwo)
         incrementShape ~> multiplierShape
         FlowShape(incrementShape.in, multiplierShape.out)
