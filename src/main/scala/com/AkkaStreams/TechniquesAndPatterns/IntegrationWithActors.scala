@@ -1,7 +1,8 @@
 package com.AkkaStreams.TechniquesAndPatterns
 
+import akka.Done
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
-import akka.stream.{Materializer, OverflowStrategy}
+import akka.stream.{CompletionStrategy, Materializer, OverflowStrategy}
 import akka.stream.scaladsl.{Flow, RunnableGraph, Sink, Source}
 import akka.util.Timeout
 
@@ -52,7 +53,21 @@ object IntegrationWithActors extends App {
   * here we want actor ref exposed to you so yo can send messages to it
   * when you send messages to one of these actors ref means you're injecting
   * messages into the stream*/
-  val actorPoweredSource = Source.actorRef[Int](bufferSize = 10, overflowStrategy = OverflowStrategy.dropHead)
+  //val actorPoweredSource = Source.actorRef[Int](bufferSize = 10, overflowStrategy = OverflowStrategy.dropHead){{deprecated}}
+  //new method signature
+  /*def actorRef[T](
+      completionMatcher: PartialFunction[Any, CompletionStrategy],
+      failureMatcher: PartialFunction[Any, Throwable],
+      bufferSize: Int,
+      overflowStrategy: OverflowStrategy)*/
+  val actorPoweredSource = Source.actorRef[Int](
+    completionMatcher  = {
+      case Done => CompletionStrategy.immediately
+    },
+    failureMatcher = PartialFunction.empty,
+    bufferSize = 10,
+    OverflowStrategy.dropHead
+  )
   val materializeValueOfActorRef: ActorRef =
     actorPoweredSource.to(Sink.foreach[Int](number => println(s"Actor Powered Flow Got Number $number"))).run()
   materializeValueOfActorRef ! 10
@@ -83,7 +98,7 @@ object IntegrationWithActors extends App {
       case StreamFail(ex) =>
         log.warning(s"Stream failed $ex")
       case msg =>
-        log.info(s"$msg Delivered At Desired")
+        log.info(s"$msg Delivered As Desired")
         sender() ! StreamAck
     }
   }
@@ -100,9 +115,9 @@ object IntegrationWithActors extends App {
   Source(1 to 10).to(actorPoweredSink).run()
   //prints
   //[akka://WithActors/user/ActorAsSink] Stream Initialized
-  //[akka://WithActors/user/ActorAsSink] 1 Delivered At Desired
-  //[akka://WithActors/user/ActorAsSink] 2 Delivered At Desired
-  //[akka://WithActors/user/ActorAsSink] 3 Delivered At Desired
-  //................to akka://WithActors/user/ActorAsSink] 10 Delivered At Desired
+  //[akka://WithActors/user/ActorAsSink] 1 Delivered As Desired
+  //[akka://WithActors/user/ActorAsSink] 2 Delivered As Desired
+  //[akka://WithActors/user/ActorAsSink] 3 Delivered As Desired
+  //................to akka://WithActors/user/ActorAsSink] 10 Delivered As Desired
   //[akka://WithActors/user/ActorAsSink] Stream Complete
 }
