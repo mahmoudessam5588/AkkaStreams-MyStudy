@@ -7,10 +7,13 @@ import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Keep, Sink, Source}
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+
 //Expose Materialized value In Components built with Graph Dsl
 object GraphMaterializedValues extends App {
   given actorsystem: ActorSystem = ActorSystem("MoreOpenGraphs")
+
   given materialize: Materializer = Materializer(actorsystem)
+
   val wordSource = Source(List("Scala", "and", "Akka", "are", "Awesome"))
   val printer: Sink[String, Future[Done]] = Sink.foreach[String](println)
   val counter: Sink[String, Future[Int]] = Sink.fold[Int, String](0)((count, _) => count + 1)
@@ -24,7 +27,9 @@ object GraphMaterializedValues extends App {
   //the other branch of the Broadcast will fill only string that are short and feed that into counter
   //Step One
   val complexWordSink: Sink[String, Future[Int]] = Sink.fromGraph(
-    GraphDSL.createGraph(printer, counter)((printerMat, counterMat) => counterMat) {
+    //we passing the desired components as High order function on Create Graph To Expose The Materialize Value
+    //as shown below
+    GraphDSL.createGraph(printer, counter)((_, counterMat) => counterMat) {
       implicit builder =>
         (printerShape, counterShape) =>
           import GraphDSL.Implicits.*
@@ -50,6 +55,7 @@ object GraphMaterializedValues extends App {
     case Success(count) => println(s"total word count of short strings is $count")
     case Failure(exception) => println(s"Unsuccessful Operation ${exception.printStackTrace()}")
   }(actorsystem.dispatcher)
+
   //prints
   /*and
   are
@@ -68,6 +74,7 @@ object GraphMaterializedValues extends App {
       }
     )
   }
+
   val typicalSource = Source(1 to 55)
   val typicalFlow = Flow[Int].map(x => x)
   val typicalSink = Sink.ignore

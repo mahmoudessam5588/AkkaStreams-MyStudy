@@ -13,7 +13,7 @@ import java.util.Date
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-//Who To Integrate Akka Streams With Future
+//how To Integrate Akka Streams With Future
 //There Are Situations Where Incoming Elements In Streams we need to Invoke
 //Some External Services Like A Remote API
 object IntegrationWithExternalService extends App {
@@ -27,9 +27,9 @@ object IntegrationWithExternalService extends App {
   def genericExternalService[A, B](element: A): Future[B] = ???
 
   //more realistic example simplified PagerDuty
-  //these kind of events ara pushed to service continuously vis some kind of api that exposed to other people
+  //these kind of events are pushed to service continuously via some kind of api that exposed to other people
   //and in the end we get a source
-  //we are going to simplify as a simple source with a list
+  //we are going to simplify it as a simple source with a list
   case class PagerEvent(application: String, desc: String, date: Date)
 
   val eventSource = Source(List(
@@ -64,6 +64,24 @@ object IntegrationWithExternalService extends App {
   }
 
   val filteredInfraEvents: Source[PagerEvent, NotUsed] = eventSource.filter(_.application == "Akka Infra")
+  /*mapAsync:
+  Transform this stream by applying the given function to each of the elements as they pass through this processing step.
+  The function returns a Future and the value of that future will be emitted downstream.
+  The number of Futures that shall run in parallel is given as the first argument to mapAsyncUnordered.
+  Each processed element will be emitted downstream as soon as it is ready, i.e.
+  it is possible that the elements are not emitted downstream in the same order as received from upstream.
+  If the function f throws an exception or if the Future is completed with failure and the supervision decision is Supervision.
+  Stop the stream will be completed with failure.
+  If the function f throws an exception or if the Future is completed with failure and the supervision decision is Supervision.
+  Resume or Supervision.
+  Restart the element is dropped and the stream continues.
+  The function f is always invoked on the elements in the order they arrive (even though the result of the futures
+  returned by f might be emitted in a different order).
+  Adheres to the ActorAttributes.SupervisionStrategy attribute.
+  Emits when any of the Futures returned by the provided function complete
+  Backpressures when the number of futures reaches the configured parallelism and the downstream backpressures
+  Completes when upstream completes and all futures have been completed and all elements have been emitted
+  Cancels when downstream cancels*/
   val pagedEngineerEmails: Source[String, NotUsed] =
     filteredInfraEvents.mapAsync(parallelism = 4)(pgEvent => PagerService.processEvent(pgEvent))
   //mapAsync guarantees the relative order of the elements
@@ -130,8 +148,9 @@ object IntegrationWithExternalService extends App {
   val pagerActor = actorSystem.actorOf(Props[PagerServiceActor](),"PagerServiceActor")
   //Instead of calling pager service that process evens lets ask this actor which also returns future
   val alternativePagerEngineerEmails: NotUsed =
-    filteredInfraEvents.mapAsync[String](parallelism = 4)(event =>(pagerActor ? event)
-      .mapTo[String]).to(pagedEmailSink).run()
+    filteredInfraEvents.
+      mapAsync[String](parallelism = 4)(event =>(pagerActor ? event).mapTo[String])
+      .to(pagedEmailSink).run()
     //prints
     //INFO] [08/02/2022 14:51:30.004] [IntegratingWithExternalServices-akka.actor.default-dispatcher-7] [akka://IntegratingWithExternalServices/user/PagerServiceActor] Sending Pager Email to mahmoud@gamil.com a High Priority Notification PagerEvent(Akka Infra,Infra Broke,Tue Aug 02 14:51:29 EET 2022)
   //Successfully sent notification to mahmoud@gamil.com

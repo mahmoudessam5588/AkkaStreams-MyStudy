@@ -18,7 +18,9 @@ import scala.reflect.ClassTag.Int
 //D)or even inside the Akka Streams
 object IntegrationWithActors extends App {
   given actorSystem: ActorSystem = ActorSystem("WithActors")
+
   given materialize: Materializer = Materializer(actorSystem)
+
   class TypicalActor extends Actor with ActorLogging {
     override def receive: Receive = {
       case str: String =>
@@ -30,6 +32,7 @@ object IntegrationWithActors extends App {
       case _ =>
     }
   }
+
   val typicalActor = actorSystem.actorOf(Props[TypicalActor](), "IntActor")
   val sourceInt = Source(1 to 10)
 
@@ -42,6 +45,7 @@ object IntegrationWithActors extends App {
   //Implicit TimeOut ==> A Timeout is a wrapper on top of Duration to be more specific about what the duration means
   //tag = constraint for type of variable at runtime using reflection
   given timeout: Timeout = Timeout(2 second)
+
   //val actorBasedFlow = Flow[Int].ask(parallelism = 4)(typicalActor)(using timeout,tag = Int)
   //short hand of the above
   val actorBasedFlow = Flow[Int].ask[Int](4)(typicalActor)
@@ -54,14 +58,18 @@ object IntegrationWithActors extends App {
   * when you send messages to one of these actors ref means you're injecting
   * messages into the stream*/
   //val actorPoweredSource = Source.actorRef[Int](bufferSize = 10, overflowStrategy = OverflowStrategy.dropHead){{deprecated}}
-  //new method signature
+  //new method signature prior to Akka 2.6.19
   /*def actorRef[T](
       completionMatcher: PartialFunction[Any, CompletionStrategy],
       failureMatcher: PartialFunction[Any, Throwable],
       bufferSize: Int,
       overflowStrategy: OverflowStrategy)*/
   val actorPoweredSource = Source.actorRef[Int](
-    completionMatcher  = {
+    completionMatcher = {
+      // def immediately: CompletionStrategy = Immediately ==>
+      // The completion will be signaled immediately even if elements are still buffered.
+      //def draining: CompletionStrategy = Draining
+      //Already buffered elements will be signaled before signaling completion.
       case Done => CompletionStrategy.immediately
     },
     failureMatcher = PartialFunction.empty,
@@ -73,6 +81,7 @@ object IntegrationWithActors extends App {
   materializeValueOfActorRef ! 10
   //terminating the stream
   materializeValueOfActorRef ! akka.actor.Status.Success("complete")
+
   //-----------------------------------------------------------------------------
   /*actor as a destination or a sink
   * an init message
@@ -84,9 +93,13 @@ object IntegrationWithActors extends App {
   //to confirm the perception of an element && a complete message {support function message}to generate messages in-case
   //streams throws an exception
   case object StreamInit
+
   case object StreamAck
+
   case object StreamComplete
+
   case class StreamFail(ex: Throwable)
+
   class DestinationActor extends Actor with ActorLogging {
     override def receive: Receive = {
       case StreamInit =>
@@ -102,9 +115,25 @@ object IntegrationWithActors extends App {
         sender() ! StreamAck
     }
   }
+
   val destinationActor = actorSystem.actorOf(Props[DestinationActor](), "ActorAsSink")
   //signature
-  //  actorRefWithAck(ref, _ => identity, _ => onInitMessage, Some(ackMessage), onCompleteMessage, onFailureMessage)
+  //  actorRefWithAck(ref, _ => identity, _ => onInitMessage, Some(ackMessage), onCompleteMessage, onFailureMessage){{Deprecated}}
+  /*def actorRefWithBackpressure[T](
+      ref: ActorRef,
+      onInitMessage: Any,
+      ackMessage: Any,
+      onCompleteMessage: Any,
+      onFailureMessage: Throwable => Any): Sink[T, NotUsed] =
+    actorRefWithAck(ref, _ => identity, _ => onInitMessage, Some(ackMessage), onCompleteMessage, onFailureMessage)*/
+
+  /*Sends the elements of the stream to the given ActorRef that sends back back-pressure signal.
+  First element is always onInitMessage, then stream is waiting for acknowledgement message ackMessage
+  from the given actor which means that it is ready to process elements.
+  It also requires ackMessage message after each stream element to make backpressure work.
+  If the target actor terminates the stream will be canceled.
+  When the stream is completed successfully the given onCompleteMessage will be sent to the destination actor.
+  When the stream is completed with failure - result of onFailureMessage(throwable) function will be sent to the destination actor*/
   val actorPoweredSink = Sink.actorRefWithBackpressure[Int](
     destinationActor
     , onInitMessage = StreamInit,

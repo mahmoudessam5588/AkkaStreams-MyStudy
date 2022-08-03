@@ -19,7 +19,7 @@ object AdvancedBackPressureTechniques extends App {
 
   //there are some components that can't be respond to back pressure
   //simplified PagerEvent Example
-  case class PagerEvent(desc: String, date: Date,nInstances:Int=1)
+  case class PagerEvent(desc: String, date: Date,nInstances:Int=1/*Default parameter*/)
   case class Notification(email: String, pagerEvent: PagerEvent)
   val eventsData = List(
     PagerEvent("Infra Broke", new Date),
@@ -37,7 +37,7 @@ object AdvancedBackPressureTechniques extends App {
   val notificationSink = Flow[PagerEvent]
     .map(event => Notification(onCallEngineer, event))
     .to(Sink.foreach[Notification](sendEmail))
-  //standard
+  //standard normal behaviour 
   eventSource.to(notificationSink).run()
   //----------------------------------------------------------------------------------
   //Slow Consumers {{SinK}}
@@ -45,7 +45,7 @@ object AdvancedBackPressureTechniques extends App {
   //normally notification sequence flow will try back pressure the source
   //that can cause issues on practical side the relevant engineer that should be paged on
   //the fault code alarm may not be paged in time
-  //timer based sources don't respond to back pressure
+  //Also timer based sources don't respond to back pressure
   //create send Email Slow
   def sendEmailSlow(notification: Notification): Unit = {
     Thread.sleep(1000)
