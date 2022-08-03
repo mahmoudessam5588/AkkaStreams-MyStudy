@@ -66,7 +66,6 @@ object CyclicGraphs extends App {
   * and output will emit an infinite FIBONACCI SEQUENCE
   * fan In 2 number ==> Zip
   * Infinite use => Merge preferred*/
-  //See Figure
   //Start with Simple Zip which pack my inputs into tuples ~> MergePreferred ~> flow
   //take my fibonacci tuple and composes an new tuple with the next iteration of fibonacci numbers
   //(last,previous) =>(last+previous ,last) ~> fan-out broadcast one of the broadcast output with take the
