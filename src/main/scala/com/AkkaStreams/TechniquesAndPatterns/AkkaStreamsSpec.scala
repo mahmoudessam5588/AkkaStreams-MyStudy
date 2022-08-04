@@ -2,8 +2,8 @@ package com.AkkaStreams.TechniquesAndPatterns
 
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
-import akka.stream.Materializer
-import akka.stream.scaladsl.{Flow, Keep, RunnableGraph, Sink, Source}
+import akka.stream.{Graph, Inlet, Materializer, Outlet, Shape}
+import akka.stream.scaladsl.{Flow, GraphDSL, Keep, RunnableGraph, Sink, Source}
 import akka.stream.testkit.{TestPublisher, TestSubscriber}
 import akka.stream.testkit.scaladsl.{TestSink, TestSource}
 import akka.testkit.{TestKit, TestProbe}
@@ -83,24 +83,24 @@ class AkkaStreamsSpec extends TestKit(ActorSystem("AkkaStreams"))
       //here we need to test both value so we keep both
       // as a tuple of (TestPublisher.Probe[Int], Future[Done])
       val materializeTestValue: (TestPublisher.Probe[Int], Future[Done]) =
-        testingSource.toMat(sinkUnderTest)(Keep.both).run()
+      testingSource.toMat(sinkUnderTest)(Keep.both).run()
       val (testPublisherIntExtractor, futureDoneExtractor) = materializeTestValue
-        //we will work on both val above with their special message
-        testPublisherIntExtractor
-          .sendNext(1)
-          .sendNext(5)
-          .sendNext(13)
-          .sendComplete()
-        //assertion on futureDoneExtractor
-        futureDoneExtractor.onComplete {
-          case Success(_) => fail("The Sink Should Have Thrown An Exception By Now???!!")
-          case Failure(_) => //expected result
-        }
+      //we will work on both val above with their special message
+      testPublisherIntExtractor
+        .sendNext(1)
+        .sendNext(5)
+        .sendNext(13)
+        .sendComplete()
+      //assertion on futureDoneExtractor
+      futureDoneExtractor.onComplete {
+        case Success(_) => fail("The Sink Should Have Thrown An Exception By Now???!!")
+        case Failure(_) => //expected result
+      }
     }
     "Testing Flow With Source And A Sink tests" in {
-      val flowUnderTest = Flow[Int].map(x=>x)
+      val flowUnderTest = Flow[Int].map(x => x)
       val testSource = TestSource.probe[Int]
-      val testSink =TestSink.probe[Int]
+      val testSink = TestSink.probe[Int]
       val materialize: (TestPublisher.Probe[Int], TestSubscriber.Probe[Int]) =
         testSource.via(flowUnderTest).toMat(testSink)(Keep.both).run()
       val (testPublisherExtractor, testSubscriberExtractor) = materialize
@@ -112,7 +112,7 @@ class AkkaStreamsSpec extends TestKit(ActorSystem("AkkaStreams"))
         .sendNext(100)
         .sendComplete()
       testSubscriberExtractor.request(4)
-      testSubscriberExtractor.expectNext(1,42,99,100).expectComplete()
+      testSubscriberExtractor.expectNext(1, 42, 99, 100).expectComplete()
     }
 
   }
